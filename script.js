@@ -58,11 +58,12 @@ let score;
 let highScore = localStorage.getItem("highScore") || 0;
 
 let frame = 0;
-const gravity = 0.5;
-const jump = -9;
+const gravity = 0.3; // slower fall
+const jump = -6;     // softer flap
 const pipeGap = 180;
 const pipeWidth = 70;
 const groundHeight = 112;
+const pipeSpeed = 2.5; // slower pipes
 
 /* ---------------------
    RESET GAME
@@ -109,9 +110,7 @@ function flap() {
     bird.vel = jump;
     wingSound.currentTime = 0;
     wingSound.play();
-  }
-
-  if (state === "MENU") {
+  } else if (state === "MENU" || state === "GAMEOVER") {
     resetGame();
     state = "PLAYING";
   }
@@ -156,7 +155,7 @@ function update() {
     bird.rot = Math.min(Math.PI / 6, bird.vel / 10);
 
     // Pipes
-    pipes.forEach(p => p.x -= 3);
+    pipes.forEach(p => p.x -= pipeSpeed);
 
     if (pipes[0].x < canvas.width / 2 && pipes.length === 1) {
       pipes.push({ x: canvas.width, top: Math.random() * 250 + 50 });
@@ -168,6 +167,7 @@ function update() {
       pointSound.play();
     }
 
+    // Draw pipes
     pipes.forEach(p => {
       ctx.drawImage(pipeImg, p.x, p.top - 320, pipeWidth, 320);
       ctx.drawImage(pipeImg, p.x, p.top + pipeGap, pipeWidth, 320);
