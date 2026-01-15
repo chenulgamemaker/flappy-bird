@@ -77,6 +77,9 @@ function resetGame() {
   frame = 0;
 }
 
+/* Initialize bird/pipes for menu */
+resetGame();
+
 /* ---------------------
    DRAW SCORE IMAGES
 --------------------- */
@@ -123,34 +126,38 @@ function flap() {
   }
 }
 
+/* Keyboard events */
 document.addEventListener("keydown", e => {
   if (e.code === "Space") flap();
   if (e.code === "KeyP" && state === "PLAYING") state = "PAUSED";
   else if (e.code === "KeyP" && state === "PAUSED") state = "PLAYING";
+
+  // Admin key: SHIFT adds 1,000,000 points instantly
+  if (e.shiftKey && state === "PLAYING") {
+    score += 1000000;
+  }
 });
 
 canvas.addEventListener("mousedown", handleClick);
 canvas.addEventListener("touchstart", handleClick);
 
+/* ---------------------
+   HANDLE MENU/CLICK
+--------------------- */
 function handleClick(e) {
   const rect = canvas.getBoundingClientRect();
   const mx = (e.clientX || e.touches[0].clientX) - rect.left;
   const my = (e.clientY || e.touches[0].clientY) - rect.top;
 
   if (state === "MAINMENU") {
-    // Menu buttons: rectangles
     if (mx > 200 && mx < 400) {
       if (my > 200 && my < 250) { state = "PLAYING"; resetGame(); }
       if (my > 260 && my < 310) state = "LEADERBOARD";
       if (my > 320 && my < 370) state = "SETTINGS";
       if (my > 380 && my < 430) state = "CREDITS";
     }
-  } else if (state === "GAMEOVER") {
-    flap(); // restart game on click
-  } else if (["LEADERBOARD","SETTINGS","CREDITS"].includes(state)) {
-    // Click anywhere to return to menu
-    state = "MAINMENU";
-  }
+  } else if (state === "GAMEOVER") flap(); // restart on click
+  else if (["LEADERBOARD","SETTINGS","CREDITS"].includes(state)) state = "MAINMENU";
 }
 
 /* ---------------------
@@ -183,50 +190,48 @@ function drawMainMenu() {
    DRAW LEADERBOARD
 --------------------- */
 function drawLeaderboard() {
-  ctx.drawImage(bgImg, 0, 0, canvas.width, canvas.height);
-  ctx.fillStyle = "white";
-  ctx.font = "48px Arial";
-  ctx.textAlign = "center";
-  ctx.fillText("Leaderboard", canvas.width/2, 100);
+  ctx.drawImage(bgImg,0,0,canvas.width,canvas.height);
+  ctx.fillStyle="white";
+  ctx.font="48px Arial";
+  ctx.textAlign="center";
+  ctx.fillText("Leaderboard",canvas.width/2,100);
 
   const board = getLeaderboard();
-  ctx.font = "28px Arial";
-  board.forEach((s,i)=>{
-    ctx.fillText(`${i+1}. ${s}`, canvas.width/2, 180 + i*40);
-  });
+  ctx.font="28px Arial";
+  board.forEach((s,i)=>{ ctx.fillText(`${i+1}. ${s}`,canvas.width/2,180+i*40); });
 
-  ctx.font = "24px Arial";
-  ctx.fillText("Click anywhere to return", canvas.width/2, 400);
+  ctx.font="24px Arial";
+  ctx.fillText("Click anywhere to return",canvas.width/2,400);
 }
 
 /* ---------------------
    DRAW SETTINGS
 --------------------- */
 function drawSettings() {
-  ctx.drawImage(bgImg, 0, 0, canvas.width, canvas.height);
-  ctx.fillStyle = "white";
-  ctx.font = "48px Arial";
-  ctx.textAlign = "center";
-  ctx.fillText("Settings", canvas.width/2, 100);
+  ctx.drawImage(bgImg,0,0,canvas.width,canvas.height);
+  ctx.fillStyle="white";
+  ctx.font="48px Arial";
+  ctx.textAlign="center";
+  ctx.fillText("Settings",canvas.width/2,100);
 
-  ctx.font = "24px Arial";
-  ctx.fillText("Placeholder: add sound/music toggle here", canvas.width/2, 200);
-  ctx.fillText("Click anywhere to return", canvas.width/2, 400);
+  ctx.font="24px Arial";
+  ctx.fillText("Placeholder: sound/music toggle",canvas.width/2,200);
+  ctx.fillText("Click anywhere to return",canvas.width/2,400);
 }
 
 /* ---------------------
    DRAW CREDITS
 --------------------- */
 function drawCredits() {
-  ctx.drawImage(bgImg, 0, 0, canvas.width, canvas.height);
-  ctx.fillStyle = "white";
-  ctx.font = "48px Arial";
-  ctx.textAlign = "center";
-  ctx.fillText("Credits", canvas.width/2, 100);
+  ctx.drawImage(bgImg,0,0,canvas.width,canvas.height);
+  ctx.fillStyle="white";
+  ctx.font="48px Arial";
+  ctx.textAlign="center";
+  ctx.fillText("Credits",canvas.width/2,100);
 
-  ctx.font = "28px Arial";
-  ctx.fillText("Game by YOU", canvas.width/2, 200);
-  ctx.fillText("Click anywhere to return", canvas.width/2, 400);
+  ctx.font="28px Arial";
+  ctx.fillText("Game by YOU",canvas.width/2,200);
+  ctx.fillText("Click anywhere to return",canvas.width/2,400);
 }
 
 /* ---------------------
@@ -288,6 +293,7 @@ function update() {
       dieSound.play();
       state="GAMEOVER";
       updateLeaderboard(score);
+      if(score>highScore) highScore=score;
     }
 
     drawScoreImages(score,30);
@@ -304,6 +310,13 @@ function update() {
     ctx.drawImage(bgImg,0,0,canvas.width,canvas.height);
     ctx.drawImage(gameOverImg,canvas.width/2-96,230);
     drawScoreImages(score,300);
+
+    // Display high score
+    ctx.fillStyle="white";
+    ctx.font="28px Arial";
+    ctx.textAlign="center";
+    ctx.fillText("High Score: " + highScore, canvas.width/2, 400);
+    ctx.fillText("Press Space or Click to Restart", canvas.width/2, 440);
   }
 
   requestAnimationFrame(update);
