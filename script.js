@@ -106,26 +106,25 @@ function drawScoreImages(value, y) {
    INPUT
 --------------------- */
 function flap() {
+  // PLAYING: flap normally
   if (state === "PLAYING") {
     bird.vel = jump;
     wingSound.currentTime = 0;
     wingSound.play();
-  } else if (state === "MENU" || state === "GAMEOVER") {
+  } 
+  // MENU or GAMEOVER: restart game
+  else if (state === "MENU" || state === "GAMEOVER") {
     resetGame();
     state = "PLAYING";
+    wingSound.currentTime = 0;
+    wingSound.play();
   }
 }
 
 document.addEventListener("keydown", e => {
-  if (e.code === "Space") flap();
-
+  if (e.code === "Space") flap(); // jump = Space
   if (e.code === "KeyP" && state === "PLAYING") state = "PAUSED";
   else if (e.code === "KeyP" && state === "PAUSED") state = "PLAYING";
-
-  if (e.code === "KeyR" && state === "GAMEOVER") {
-    resetGame();
-    state = "PLAYING";
-  }
 });
 
 canvas.addEventListener("mousedown", flap);
