@@ -1,123 +1,241 @@
 const canvas = document.getElementById("game");
 const ctx = canvas.getContext("2d");
 
-let gameState = "MENU";
+/* ---------------------
+   GAME STATE
+--------------------- */
+let state = "MENU"; // MENU, PLAYING, PAUSED, GAMEOVER
 
-let birdY, velocity;
-let gravity = 0.5;
+/* ---------------------
+   IMAGES
+--------------------- */
+const bgImg = new Image();
+bgImg.src = "assets/background-day.png";
 
-let pipeX, pipeGap, topPipeHeight;
+const baseImg = new Image();
+baseImg.src = "assets/base.png";
+
+const pipeImg = new Image();
+pipeImg.src = "assets/pipe-green.png";
+
+const birdFrames = [
+  new Image(),
+  new Image(),
+  new Image()
+];
+birdFrames[0].src = "assets/bird/yellowbird-upflap.png";
+birdFrames[1].src = "assets/bird/yellowbird-midflap.png";
+birdFrames[2].src = "assets/bird/yellowbird-downflap.png";
+
+const gameOverImg = new Image();
+gameOverImg.src = "assets/ui/gameover.png";
+
+const messageImg = new Image();
+messageImg.src = "assets/ui/message.png";
+
+/* Numbers for score */
+const numberImgs = [];
+for (let i = 0; i <= 9; i++) {
+  const img = new Image();
+  img.src = `assets/ui/Numbers/${i}.png`;
+  numberImgs.push(img);
+}
+
+/* ---------------------
+   SOUNDS
+--------------------- */
+const wingSound = new Audio("assets/sounds/wing.wav");
+const hitSound = new Audio("assets/sounds/hit.wav");
+const dieSound = new Audio("assets/sounds/die.wav");
+const pointSound = new Audio("assets/sounds/point.wav");
+
+/* ---------------------
+   GAME VARIABLES
+--------------------- */
+let bird;
+let pipes;
 let score;
+let highScore = localStorage.getItem("highScore") || 0;
 
+let frame = 0;
+const gravity = 0.5;
+const jump = -9;
+const pipeGap = 180;
+const pipeWidth = 70;
+const groundHeight = 112;
+
+/* ---------------------
+   RESET GAME
+--------------------- */
 function resetGame() {
-  birdY = canvas.height / 2;
-  velocity = 0;
-  pipeX = canvas.width;
-  pipeGap = 180;
-  topPipeHeight = Math.random() * 250 + 50;
+  bird = {
+    x: 100,
+    y: canvas.height / 2,
+    size: 34,
+    vel: 0,
+    rot: 0
+  };
+
+  pipes = [{
+    x: canvas.width,
+    top: Math.random() * 250 + 50
+  }];
+
   score = 0;
+  frame = 0;
 }
 
-function drawBird() {
-  ctx.fillStyle = "yellow";
-  ctx.fillRect(80, birdY, 30, 30);
+/* ---------------------
+   DRAW SCORE (IMAGE NUMBERS)
+--------------------- */
+function drawScoreImages(value, y) {
+  const digits = value.toString().split("");
+  const w = 24;
+  const h = 36;
+  const totalWidth = digits.length * w;
+  let x = canvas.width / 2 - totalWidth / 2;
+
+  digits.forEach(d => {
+    ctx.drawImage(numberImgs[d], x, y, w, h);
+    x += w;
+  });
 }
 
-function drawPipes() {
-  ctx.fillStyle = "green";
-  ctx.fillRect(pipeX, 0, 70, topPipeHeight);
-  ctx.fillRect(
-    pipeX,
-    topPipeHeight + pipeGap,
-    70,
-    canvas.height
-  );
-}
-
-function drawText(text, size, y) {
-  ctx.fillStyle = "white";
-  ctx.font = `${size}px Arial`;
-  ctx.textAlign = "center";
-  ctx.fillText(text, canvas.width / 2, y);
-}
-
-function collision() {
-  if (
-    80 + 30 > pipeX &&
-    80 < pipeX + 70 &&
-    (birdY < topPipeHeight ||
-      birdY + 30 > topPipeHeight + pipeGap)
-  ) {
-    gameState = "GAMEOVER";
+/* ---------------------
+   INPUT
+--------------------- */
+function flap() {
+  if (state === "PLAYING") {
+    bird.vel = jump;
+    wingSound.currentTime = 0;
+    wingSound.play();
   }
 
-  if (birdY < 0 || birdY + 30 > canvas.height) {
-    gameState = "GAMEOVER";
+  if (state === "MENU") {
+    resetGame();
+    state = "PLAYING";
   }
 }
 
+document.addEventListener("keydown", e => {
+  if (e.code === "Space") flap();
+
+  if (e.code === "KeyP" && state === "PLAYING") state = "PAUSED";
+  else if (e.code === "KeyP" && state === "PAUSED") state = "PLAYING";
+
+  if (e.code === "KeyR" && state === "GAMEOVER") {
+    resetGame();
+    state = "PLAYING";
+  }
+});
+
+canvas.addEventListener("mousedown", flap);
+canvas.addEventListener("touchstart", flap);
+
+/* ---------------------
+   GAME LOOP
+--------------------- */
 function update() {
   ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-  if (gameState === "MENU") {
-    drawText("FLAPPY BIRD", 50, 250);
-    drawText("Press SPACE to Start", 24, 320);
+  /* ---------- MENU ---------- */
+  if (state === "MENU") {
+    ctx.drawImage(bgImg, 0, 0, canvas.width, canvas.height);
+    ctx.drawImage(messageImg, canvas.width / 2 - 92, 220);
   }
 
-  if (gameState === "PLAYING") {
-    velocity += gravity;
-    birdY += velocity;
+  /* ---------- PLAYING ---------- */
+  if (state === "PLAYING") {
+    frame++;
 
-    pipeX -= 3;
-    if (pipeX < -70) {
-      pipeX = canvas.width;
-      topPipeHeight = Math.random() * 250 + 50;
-      score++;
+    ctx.drawImage(bgImg, 0, 0, canvas.width, canvas.height);
+
+    // Bird physics
+    bird.vel += gravity;
+    bird.y += bird.vel;
+    bird.rot = Math.min(Math.PI / 6, bird.vel / 10);
+
+    // Pipes
+    pipes.forEach(p => p.x -= 3);
+
+    if (pipes[0].x < canvas.width / 2 && pipes.length === 1) {
+      pipes.push({ x: canvas.width, top: Math.random() * 250 + 50 });
     }
 
-    drawBird();
-    drawPipes();
-    collision();
+    if (pipes[0].x < -pipeWidth) {
+      pipes.shift();
+      score++;
+      pointSound.play();
+    }
 
-    drawText(`Score: ${score}`, 24, 40);
+    pipes.forEach(p => {
+      ctx.drawImage(pipeImg, p.x, p.top - 320, pipeWidth, 320);
+      ctx.drawImage(pipeImg, p.x, p.top + pipeGap, pipeWidth, 320);
+    });
+
+    // Bird animation
+    const birdFrame = Math.floor(frame / 6) % birdFrames.length;
+    ctx.save();
+    ctx.translate(bird.x + bird.size / 2, bird.y + bird.size / 2);
+    ctx.rotate(bird.rot);
+    ctx.drawImage(
+      birdFrames[birdFrame],
+      -bird.size / 2,
+      -bird.size / 2,
+      bird.size,
+      bird.size
+    );
+    ctx.restore();
+
+    // Ground
+    ctx.drawImage(baseImg, 0, canvas.height - groundHeight, canvas.width, groundHeight);
+
+    // Collision
+    pipes.forEach(p => {
+      if (
+        bird.x + bird.size > p.x &&
+        bird.x < p.x + pipeWidth &&
+        (bird.y < p.top || bird.y + bird.size > p.top + pipeGap)
+      ) {
+        hitSound.play();
+        dieSound.play();
+        state = "GAMEOVER";
+      }
+    });
+
+    if (bird.y < 0 || bird.y + bird.size > canvas.height - groundHeight) {
+      hitSound.play();
+      dieSound.play();
+      state = "GAMEOVER";
+    }
+
+    drawScoreImages(score, 30);
   }
 
-  if (gameState === "PAUSED") {
-    drawBird();
-    drawPipes();
-    drawText("PAUSED", 50, 300);
-    drawText("Press P to Resume", 24, 350);
+  /* ---------- PAUSED ---------- */
+  if (state === "PAUSED") {
+    ctx.drawImage(bgImg, 0, 0, canvas.width, canvas.height);
+    drawScoreImages(score, 30);
+    ctx.fillStyle = "white";
+    ctx.font = "48px Arial";
+    ctx.textAlign = "center";
+    ctx.fillText("PAUSED", canvas.width / 2, canvas.height / 2);
   }
 
-  if (gameState === "GAMEOVER") {
-    drawText("GAME OVER", 50, 260);
-    drawText(`Score: ${score}`, 30, 310);
-    drawText("Press R to Restart", 24, 360);
+  /* ---------- GAME OVER ---------- */
+  if (state === "GAMEOVER") {
+    ctx.drawImage(bgImg, 0, 0, canvas.width, canvas.height);
+    ctx.drawImage(gameOverImg, canvas.width / 2 - 96, 230);
+
+    if (score > highScore) {
+      highScore = score;
+      localStorage.setItem("highScore", highScore);
+    }
+
+    drawScoreImages(score, 300);
   }
 
   requestAnimationFrame(update);
 }
-
-document.addEventListener("keydown", (e) => {
-  if (e.code === "Space") {
-    if (gameState === "MENU") {
-      resetGame();
-      gameState = "PLAYING";
-    } else if (gameState === "PLAYING") {
-      velocity = -9;
-    }
-  }
-
-  if (e.code === "KeyP" && gameState === "PLAYING") {
-    gameState = "PAUSED";
-  } else if (e.code === "KeyP" && gameState === "PAUSED") {
-    gameState = "PLAYING";
-  }
-
-  if (e.code === "KeyR" && gameState === "GAMEOVER") {
-    resetGame();
-    gameState = "PLAYING";
-  }
-});
 
 update();
