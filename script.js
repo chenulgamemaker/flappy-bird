@@ -7,13 +7,72 @@ Object.freeze(Object.prototype);
 /* ===== CANVAS ===== */
 const canvas = document.getElementById("game");
 const ctx = canvas.getContext("2d");
+const menuButtons = {
+  play:    { x: 100, y: 240, w: 280, h: 50 },
+  board:   { x: 100, y: 300, w: 280, h: 50 },
+  settings:{ x: 100, y: 360, w: 280, h: 50 },
+  credits: { x: 100, y: 420, w: 280, h: 50 }
+};
+function drawMenu() {
+  ctx.drawImage(bgImg, 0, 0, canvas.width, canvas.height);
+
+  ctx.fillStyle = "rgba(0,0,0,0.4)";
+  Object.values(menuButtons).forEach(b => {
+    ctx.fillRect(b.x, b.y, b.w, b.h);
+  });
+
+  ctx.fillStyle = "white";
+  ctx.font = "24px Arial";
+  ctx.textAlign = "center";
+
+  ctx.fillText("Play", canvas.width / 2, 275);
+  ctx.fillText("Leaderboard", canvas.width / 2, 335);
+  ctx.fillText("Settings", canvas.width / 2, 395);
+  ctx.fillText("Credits", canvas.width / 2, 455);
+}
+
+
 
 function resizeCanvas() {
   canvas.width = Math.min(window.innerWidth, 480);
   canvas.height = Math.min(window.innerHeight, 640);
 }
-window.addEventListener("resize", resizeCanvas);
-resizeCanvas();
+canvas.addEventListener("click", e => {
+  const rect = canvas.getBoundingClientRect();
+  const x = e.clientX - rect.left;
+  const y = e.clientY - rect.top;
+
+  if (state === STATE.MENU) {
+    if (inside(x, y, menuButtons.play)) {
+      resetGame();
+      state = STATE.PLAYING;
+    }
+    else if (inside(x, y, menuButtons.board)) {
+      state = STATE.LEADERBOARD;
+    }
+    else if (inside(x, y, menuButtons.settings)) {
+      state = STATE.SETTINGS;
+    }
+    else if (inside(x, y, menuButtons.credits)) {
+      state = STATE.CREDITS;
+    }
+    return;
+  }
+
+  if (state === STATE.SETTINGS) {
+    soundEnabled = !soundEnabled;
+    localStorage.setItem("soundEnabled", soundEnabled);
+    return;
+  }
+
+  if (state === STATE.LEADERBOARD || state === STATE.CREDITS) {
+    state = STATE.MENU;
+    return;
+  }
+
+  flap();
+});
+;
 
 /* ===== GAME STATES ===== */
 const STATE = {
