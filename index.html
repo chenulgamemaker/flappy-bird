@@ -1,130 +1,15 @@
-"use strict";
-
-const canvas = document.getElementById("game");
-const ctx = canvas.getContext("2d");
-
-canvas.width = 480;
-canvas.height = 640;
-
-const bgImg = new Image();
-bgImg.src = "assets/background-day.png";
-
-const pipeImg = new Image();
-pipeImg.src = "assets/pipe-green.png";
-
-const birdImg = new Image();
-birdImg.src = "assets/yellowbird-midflap.png";
-
-let bird = { x: 80, y: 320, vel: 0 };
-let pipes = [];
-let score = 0;
-let frame = 0;
-const gravity = 0.45;
-const jump = -7;
-const pipeGap = 140;
-
-let state = "MENU";
-
-/* SINGLE START BUTTON */
-const startButton = { x: 140, y: 300, w: 200, h: 60 };
-
-canvas.addEventListener("click", e => {
-  const rect = canvas.getBoundingClientRect();
-  const x = e.clientX - rect.left;
-  const y = e.clientY - rect.top;
-
-  if (state === "MENU") {
-    if (x >= startButton.x && x <= startButton.x + startButton.w &&
-        y >= startButton.y && y <= startButton.y + startButton.h) {
-      resetGame();
-      state = "PLAYING";
-    }
-  } else if (state === "PLAYING") {
-    bird.vel = jump;
-  } else if (state === "GAMEOVER") {
-    resetGame();
-    state = "PLAYING";
-  }
-});
-
-function resetGame() {
-  bird = { x: 80, y: canvas.height / 2, vel: 0 };
-  pipes = [];
-  score = 0;
-  frame = 0;
-}
-
-/* SIMPLE UPDATE LOOP */
-function update() {
-  ctx.drawImage(bgImg, 0, 0, canvas.width, canvas.height);
-
-  if (state === "MENU") {
-    ctx.fillStyle = "black";
-    ctx.font = "42px Arial";
-    ctx.textAlign = "center";
-    ctx.fillText("Flappy Bird", canvas.width / 2, 200);
-
-    ctx.fillStyle = "rgba(0,0,0,0.5)";
-    ctx.fillRect(startButton.x, startButton.y, startButton.w, startButton.h);
-    ctx.fillStyle = "white";
-    ctx.font = "28px Arial";
-    ctx.fillText("START", canvas.width / 2, startButton.y + 40);
-  }
-
-  else if (state === "PLAYING") {
-    frame++;
-    bird.vel += gravity;
-    bird.y += bird.vel;
-
-    if (frame % 90 === 0) {
-      pipes.push({ x: canvas.width, top: Math.random() * (canvas.height - pipeGap - 200) + 100, passed: false });
-    }
-
-    pipes.forEach(p => {
-      p.x -= 2.5;
-      // top pipe
-      ctx.save();
-      ctx.translate(p.x + 52/2, p.top);
-      ctx.scale(1, -1);
-      ctx.drawImage(pipeImg, -52/2, 0, 52, 320);
-      ctx.restore();
-      // bottom pipe
-      ctx.drawImage(pipeImg, p.x, p.top + pipeGap, 52, 320);
-
-      // collision
-      if (bird.x + 34 > p.x && bird.x < p.x + 52 &&
-          (bird.y < p.top || bird.y + 24 > p.top + pipeGap)) {
-        state = "GAMEOVER";
-      }
-
-      if (!p.passed && p.x + 52 < bird.x) {
-        score++;
-        p.passed = true;
-      }
-    });
-
-    pipes = pipes.filter(p => p.x > -52);
-
-    if (bird.y < 0 || bird.y + 24 > canvas.height) {
-      state = "GAMEOVER";
-    }
-
-    ctx.drawImage(birdImg, bird.x, bird.y, 34, 24);
-    ctx.fillStyle = "white";
-    ctx.font = "36px Arial";
-    ctx.fillText(score, canvas.width / 2, 80);
-  }
-
-  else if (state === "GAMEOVER") {
-    ctx.fillStyle = "white";
-    ctx.font = "42px Arial";
-    ctx.textAlign = "center";
-    ctx.fillText("Game Over", canvas.width / 2, 250);
-    ctx.font = "28px Arial";
-    ctx.fillText("Click to Restart", canvas.width / 2, 350);
-  }
-
-  requestAnimationFrame(update);
-}
-
-bgImg.onload = update; // start loop after bg loaded
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Flappy Bird</title>
+  <style>
+    body { margin: 0; background: #70c5ce; display:flex; justify-content:center; align-items:center; height:100vh; }
+    canvas { display:block; border:1px solid black; }
+  </style>
+</head>
+<body>
+  <canvas id="game"></canvas>
+  <script src="script.js"></script>
+</body>
+</html>
