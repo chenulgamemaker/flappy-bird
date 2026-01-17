@@ -1,59 +1,155 @@
 "use strict";
 
-/* ===== BASIC ANTI-TAMPER (NOT PERFECT) ===== */
-Object.freeze(Math);
-Object.freeze(Object.prototype);
-
-/* ===== CANVAS ===== */
+/* ================= CANVAS ================= */
 const canvas = document.getElementById("game");
 const ctx = canvas.getContext("2d");
-const menuButtons = {
-  play:    { x: 100, y: 240, w: 280, h: 50 },
-  board:   { x: 100, y: 300, w: 280, h: 50 },
-  settings:{ x: 100, y: 360, w: 280, h: 50 },
-  credits: { x: 100, y: 420, w: 280, h: 50 }
-};
-function drawMenu() {
-  ctx.drawImage(bgImg, 0, 0, canvas.width, canvas.height);
-
-  ctx.fillStyle = "rgba(0,0,0,0.4)";
-  Object.values(menuButtons).forEach(b => {
-    ctx.fillRect(b.x, b.y, b.w, b.h);
-  });
-
-  ctx.fillStyle = "white";
-  ctx.font = "24px Arial";
-  ctx.textAlign = "center";
-
-  ctx.fillText("Play", canvas.width / 2, 275);
-  ctx.fillText("Leaderboard", canvas.width / 2, 335);
-  ctx.fillText("Settings", canvas.width / 2, 395);
-  ctx.fillText("Credits", canvas.width / 2, 455);
-}
-
-
 
 function resizeCanvas() {
   canvas.width = Math.min(window.innerWidth, 480);
   canvas.height = Math.min(window.innerHeight, 640);
 }
-canvas.addEventListener("click", e => {
+window.addEventListener("resize", resizeCanvas);
+resizeCanvas();
+
+/* ================= GAME STATES ================= */
+const STATE = {
+  MENU: "MENU",
+  PLAYING: "PLAYING",
+  GAMEOVER: "GAMEOVER",
+  LEADERBOARD: "LEADERBOARD",
+  SETTINGS: "SETTINGS",
+  CREDITS: "CREDITS"
+};
+let state = STATE.MENU;
+
+/* ================= ASSETS ================= */
+const bgImg = new Image();
+bgImg.src = "assets/background-day.png";
+
+const pipeImg = new Image();
+pipeImg.src = "assets/pipe-green.png";
+
+const birdImgs = [
+  "assets/yellowbird-upflap.png",
+  "assets/yellowbird-midflap.png",
+  "assets/yellowbird-downflap.png"
+].map(src => {
+  const i = new Image();
+  i.src = src;
+  return i;
+});
+
+/* ================= SOUNDS ================= */
+let soundEnabled = JSON.parse(localStorage.getItem("soundEnabled"));
+if (soundEnabled === null) soundEnabled = true;
+
+const sounds = {
+  wing: new Audio("assets/wing.wav"),
+  hit: new Audio("assets/hit.wav"),
+  point: new Audio("assets/point.wav"),
+  die: new Audio("assets/die.wav")
+};
+
+function playSound(s) {
+  if (!soundEnabled) return;
+  s.currentTime = 0;
+  s.play();
+}
+
+/* ================= PLAYER ================= */
+let playerName = localStorage.getItem("playerName");
+if (!playerName) {
+  playerName = prompt("Enter your name") || "Player";
+  playerName = playerName.substring(0, 12);
+  localStorage.setItem("playerName", playerName);
+}
+
+/* ================= LEADERBOARD ================= */
+function getLeaderboard() {
+  return JSON.parse(localStorage.getItem("leaderboard")) || [];
+}
+
+function saveScore(name, score) {
+  let board = getLeaderboard();
+  board.push({ name, score });
+  board.sort((a, b) => b.score - a.score);
+  board = board.slice(0, 5);
+  localStorage.setItem("leaderboard", JSON.stringify(board));
+}
+
+/* ================= GAME VARS ================= */
+let bird, pipes, score, frame;
+const gravity = 0.45;
+const jump = -7;
+const pipeGap = 140;
+const pipeWidth = 52;
+const pipeHeight = 320;
+
+/* ================= RESET ================= */
+function resetGame() {
+  bird = { x: 80, y: canvas.height / 2, vel: 0 };
+  pipes = [];
+  score = 0;
+  frame = 0;
+}
+
+/* ================= MENU BUTTONS ================= */
+function button(x, y, w, h) {
+  return { x, y, w, h };
+}
+
+function inside(px, py, b) {
+  return px >= b.x && px <= b.x + b.w &&
+         py >= b.y && py <= b.y + b.h;
+}
+
+function menuButtons() {
+  const cx = canvas.width / 2 - 140;
+  return {
+    play: button(cx, 240, 280, 55),
+    board: button(cx, 310, 280, 55),
+    settings: button(cx, 380, 280, 55),
+    credits: button(cx, 450, 280, 55)
+  };
+}
+
+/* ================= INPUT ================= */
+function flap() {
+  if (state === STATE.PLAYING) {
+    bird.vel = jump;
+    playSound(sounds.wing);
+  } else if (state === STATE.GAMEOVER) {
+    resetGame();
+    state = STATE.PLAYING;
+  }
+}
+
+canvas.addEventListener("click", handleClick);
+canvas.addEventListener("touchstart", e => {
+  e.preventDefault();
+  handleClick(e.touches[0]);
+}, { passive: false });
+
+document.addEventListener("keydown", e => {
+  if (e.code === "Space") flap();
+});
+
+function handleClick(e) {
   const rect = canvas.getBoundingClientRect();
   const x = e.clientX - rect.left;
   const y = e.clientY - rect.top;
 
+  const btn = menuButtons();
+
   if (state === STATE.MENU) {
-    if (inside(x, y, menuButtons.play)) {
+    if (inside(x, y, btn.play)) {
       resetGame();
       state = STATE.PLAYING;
-    }
-    else if (inside(x, y, menuButtons.board)) {
+    } else if (inside(x, y, btn.board)) {
       state = STATE.LEADERBOARD;
-    }
-    else if (inside(x, y, menuButtons.settings)) {
+    } else if (inside(x, y, btn.settings)) {
       state = STATE.SETTINGS;
-    }
-    else if (inside(x, y, menuButtons.credits)) {
+    } else if (inside(x, y, btn.credits)) {
       state = STATE.CREDITS;
     }
     return;
@@ -71,146 +167,37 @@ canvas.addEventListener("click", e => {
   }
 
   flap();
-});
-;
-
-/* ===== GAME STATES ===== */
-const STATE = {
-  MENU: "MENU",
-  PLAYING: "PLAYING",
-  GAMEOVER: "GAMEOVER",
-  LEADERBOARD: "LEADERBOARD",
-  SETTINGS: "SETTINGS",
-  CREDITS: "CREDITS"
-};
-let state = STATE.MENU;
-
-/* ===== ASSETS ===== */
-const bgImg = new Image();
-bgImg.src = "assets/background-day.png";
-
-const pipeImg = new Image();
-pipeImg.src = "assets/pipe-green.png";
-
-const birdImgs = [
-  "assets/yellowbird-upflap.png",
-  "assets/yellowbird-midflap.png",
-  "assets/yellowbird-downflap.png"
-].map(src => {
-  const i = new Image();
-  i.src = src;
-  return i;
-});
-
-/* ===== SOUND SETTINGS ===== */
-let soundEnabled = JSON.parse(localStorage.getItem("soundEnabled"));
-if (soundEnabled === null) soundEnabled = true;
-
-const sounds = {
-  wing: new Audio("assets/wing.wav"),
-  hit: new Audio("assets/hit.wav"),
-  point: new Audio("assets/point.wav"),
-  die: new Audio("assets/die.wav")
-};
-
-function playSound(s) {
-  if (soundEnabled) {
-    s.currentTime = 0;
-    s.play();
-  }
 }
 
-/* ===== PLAYER NAME ===== */
-let playerName = localStorage.getItem("playerName");
-if (!playerName) {
-  playerName = prompt("Enter your name:") || "Player";
-  playerName = playerName.substring(0, 12);
-  localStorage.setItem("playerName", playerName);
-}
-
-/* ===== ADMIN ===== */
-const isAdmin = playerName.toLowerCase() === "chenul";
-let adminPanel = false;
-
-/* ===== GAME VARIABLES ===== */
-let bird, pipes, score;
-const gravity = 0.45;
-const jump = -7;
-const pipeGap = 140;
-const pipeWidth = 52;
-const pipeHeight = 320;
-let frame = 0;
-
-/* ===== RESET ===== */
-function resetGame() {
-  bird = { x: 80, y: canvas.height / 2, vel: 0, frame: 0 };
-  pipes = [];
-  score = 0;
-  frame = 0;
-}
-
-/* ===== LEADERBOARD ===== */
-function getLeaderboard() {
-  return JSON.parse(localStorage.getItem("leaderboard")) || [];
-}
-
-function saveScore(name, score) {
-  let board = getLeaderboard();
-  board.push({ name, score });
-  board.sort((a, b) => b.score - a.score);
-  board = board.slice(0, 5);
-  localStorage.setItem("leaderboard", JSON.stringify(board));
-}
-
-/* ===== INPUT ===== */
-function flap() {
-  if (state === STATE.PLAYING) {
-    bird.vel = jump;
-    playSound(sounds.wing);
-  } else if (state === STATE.MENU || state === STATE.GAMEOVER) {
-    resetGame();
-    state = STATE.PLAYING;
-    playSound(sounds.wing);
-  }
-}
-
-canvas.addEventListener("click", flap);
-canvas.addEventListener("touchstart", e => {
-  e.preventDefault();
-  flap();
-}, { passive: false });
-
-document.addEventListener("keydown", e => {
-  if (e.code === "Space") flap();
-
-  if (isAdmin && e.code === "KeyA") {
-    adminPanel = !adminPanel;
-  }
-});
-
-/* ===== DRAW ===== */
-function drawCentered(text, y, size = 24) {
+/* ================= DRAW HELPERS ================= */
+function drawText(text, y, size = 24) {
   ctx.fillStyle = "white";
   ctx.font = size + "px Arial";
   ctx.textAlign = "center";
   ctx.fillText(text, canvas.width / 2, y);
 }
 
-/* ===== UPDATE ===== */
+function drawButton(b, label) {
+  ctx.fillStyle = "rgba(0,0,0,0.5)";
+  ctx.fillRect(b.x, b.y, b.w, b.h);
+  drawText(label, b.y + 38);
+}
+
+/* ================= UPDATE ================= */
 function update() {
   ctx.drawImage(bgImg, 0, 0, canvas.width, canvas.height);
 
   if (state === STATE.MENU) {
-    drawCentered("FLAPPY BIRD", 180, 42);
-    drawCentered("Tap to Play", 260);
-    drawCentered("Leaderboard", 320);
-    drawCentered("Settings", 360);
-    drawCentered("Credits", 400);
+    const btn = menuButtons();
+    drawText("FLAPPY BIRD", 160, 42);
+    drawButton(btn.play, "Play");
+    drawButton(btn.board, "Leaderboard");
+    drawButton(btn.settings, "Settings");
+    drawButton(btn.credits, "Credits");
   }
 
   else if (state === STATE.PLAYING) {
     frame++;
-
     bird.vel += gravity;
     bird.y += bird.vel;
 
@@ -225,18 +212,19 @@ function update() {
     pipes.forEach(p => {
       p.x -= 2.5;
 
-      // Pipes
+      // top pipe
       ctx.save();
       ctx.translate(p.x + pipeWidth / 2, p.top);
       ctx.scale(1, -1);
       ctx.drawImage(pipeImg, -pipeWidth / 2, 0, pipeWidth, pipeHeight);
       ctx.restore();
 
+      // bottom pipe
       ctx.drawImage(pipeImg, p.x, p.top + pipeGap, pipeWidth, pipeHeight);
 
-      // Collision
+      // collision
       if (
-        bird.x + 24 > p.x &&
+        bird.x + 34 > p.x &&
         bird.x < p.x + pipeWidth &&
         (bird.y < p.top || bird.y + 24 > p.top + pipeGap)
       ) {
@@ -260,40 +248,43 @@ function update() {
       state = STATE.GAMEOVER;
     }
 
-    ctx.drawImage(birdImgs[Math.floor(frame / 5) % 3], bird.x, bird.y, 34, 24);
-    drawCentered(score, 80, 36);
+    ctx.drawImage(birdImgs[Math.floor(frame / 6) % 3], bird.x, bird.y, 34, 24);
+    drawText(score, 80, 36);
   }
 
   else if (state === STATE.GAMEOVER) {
-    drawCentered("Game Over", 220, 40);
-    drawCentered("Score: " + score, 270);
-    drawCentered("Tap to Restart", 330);
+    drawText("Game Over", 240, 42);
+    drawText("Score: " + score, 290);
+    drawText("Tap to Restart", 350);
   }
 
-  else if (state === STATE.CREDITS) {
-    drawCentered("Credits", 200, 40);
-    drawCentered("chenul", 260);
-    drawCentered("ChatGPT", 300);
-    drawCentered("Tap to return", 380);
+  else if (state === STATE.LEADERBOARD) {
+    drawText("Leaderboard", 140, 42);
+    const board = getLeaderboard();
+    board.forEach((e, i) => {
+      drawText(`${i + 1}. ${e.name} - ${e.score}`, 220 + i * 36);
+    });
+    if (!board.length) drawText("No scores yet", 260);
+    drawText("Tap to return", 520, 18);
   }
 
   else if (state === STATE.SETTINGS) {
-    drawCentered("Settings", 200, 40);
-    drawCentered("Sound: " + (soundEnabled ? "ON" : "OFF"), 260);
-    drawCentered("Tap to toggle", 300);
+    drawText("Settings", 220, 42);
+    drawText("Sound: " + (soundEnabled ? "ON" : "OFF"), 290);
+    drawText("Tap to toggle", 340);
+    drawText("Tap to return", 520, 18);
   }
 
-  if (adminPanel) {
-    ctx.fillStyle = "rgba(0,0,0,0.7)";
-    ctx.fillRect(20, 20, 200, 100);
-    ctx.fillStyle = "lime";
-    ctx.font = "14px monospace";
-    ctx.fillText("ADMIN PANEL", 40, 50);
-    ctx.fillText("Score: " + score, 40, 70);
+  else if (state === STATE.CREDITS) {
+    drawText("Credits", 220, 42);
+    drawText("chenul", 290);
+    drawText("ChatGPT", 330);
+    drawText("Tap to return", 520, 18);
   }
 
   requestAnimationFrame(update);
 }
 
+/* ================= START ================= */
 resetGame();
 update();
