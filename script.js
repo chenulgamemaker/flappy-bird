@@ -4,9 +4,6 @@
 const canvas = document.getElementById("game");
 const ctx = canvas.getContext("2d");
 
-canvas.width = 480;
-canvas.height = 640;
-
 /* ================= GAME STATES ================= */
 const STATE = {
   MENU: "MENU",
@@ -19,36 +16,35 @@ const STATE = {
 let state = STATE.MENU;
 
 /* ================= ASSETS ================= */
-// root assets
+// Game objects
 const bgImg = new Image(); bgImg.src = "assets/background-day.png";
 const pipeImg = new Image(); pipeImg.src = "assets/pipe-green.png";
 const baseImg = new Image(); baseImg.src = "assets/base.png";
 
-// birds inside Bird folder
+// Birds
 const birdImgs = [
   "assets/Bird/yellowbird-upflap.png",
   "assets/Bird/yellowbird-midflap.png",
   "assets/Bird/yellowbird-downflap.png"
 ].map(src => { const i = new Image(); i.src = src; return i; });
 
-// UI inside UI folder
+// UI
 const messageImg = new Image(); messageImg.src = "assets/UI/message.png";
 const gameOverImg = new Image(); gameOverImg.src = "assets/UI/gameover.png";
 
-// sounds inside Sounds folder
+// Sounds
 let soundEnabled = JSON.parse(localStorage.getItem("soundEnabled"));
 if(soundEnabled===null) soundEnabled=true;
 
 const sounds = {
   wing: new Audio("assets/Sounds/wing.wav"),
-  hit: new Audio("assets/Sounds/hit.wav"),
   point: new Audio("assets/Sounds/point.wav"),
+  hit: new Audio("assets/Sounds/hit.wav"),
   die: new Audio("assets/Sounds/die.wav")
 };
-
 function playSound(s){ if(!soundEnabled) return; s.currentTime=0; s.play(); }
 
-/* ================= PLAYER ================= */
+/* ================= PLAYER & LEADERBOARD ================= */
 let playerName = localStorage.getItem("playerName");
 if(!playerName){
   playerName = prompt("Enter your name") || "Player";
@@ -56,7 +52,6 @@ if(!playerName){
   localStorage.setItem("playerName", playerName);
 }
 
-/* ================= LEADERBOARD ================= */
 function getLeaderboard(){ return JSON.parse(localStorage.getItem("leaderboard"))||[]; }
 function saveScore(name,score){
   let board=getLeaderboard();
@@ -67,12 +62,12 @@ function saveScore(name,score){
 }
 
 /* ================= GAME VARIABLES ================= */
-let bird,pipes,score,frame;
-const gravity=0.45;
-const jump=-7;
-const pipeGap=140;
-const pipeWidth=52;
-const pipeHeight=320;
+let bird, pipes, score, frame;
+const gravity = 0.45;
+const jump = -7;
+const pipeGap = 140;
+const pipeWidth = 52;
+const pipeHeight = 320;
 
 /* ================= RESET GAME ================= */
 function resetGame(){
@@ -156,11 +151,11 @@ function drawButton(b,label){
 
 /* ================= ASSET LOADING ================= */
 let assetsLoaded=0;
-const TOTAL_ASSETS=1+1+birdImgs.length+2; // bg+pipe+birds+UI images
+const TOTAL_ASSETS=3+birdImgs.length+2; // bg+pipe+base+3 birds+2 UI
 function assetReady(){assetsLoaded++;if(assetsLoaded===TOTAL_ASSETS){resetGame();update();}}
-
 bgImg.onload=assetReady;
 pipeImg.onload=assetReady;
+baseImg.onload=assetReady;
 birdImgs.forEach(img=>img.onload=assetReady);
 messageImg.onload=assetReady;
 gameOverImg.onload=assetReady;
