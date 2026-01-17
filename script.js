@@ -39,7 +39,7 @@ const birdImgs = [
   return i;
 });
 
-/* ================= SOUNDS ================= */
+/* ================= SOUND ================= */
 let soundEnabled = JSON.parse(localStorage.getItem("soundEnabled"));
 if (soundEnabled === null) soundEnabled = true;
 
@@ -77,7 +77,7 @@ function saveScore(name, score) {
   localStorage.setItem("leaderboard", JSON.stringify(board));
 }
 
-/* ================= GAME VARS ================= */
+/* ================= GAME VARIABLES ================= */
 let bird, pipes, score, frame;
 const gravity = 0.45;
 const jump = -7;
@@ -85,7 +85,7 @@ const pipeGap = 140;
 const pipeWidth = 52;
 const pipeHeight = 320;
 
-/* ================= RESET ================= */
+/* ================= RESET GAME ================= */
 function resetGame() {
   bird = { x: 80, y: canvas.height / 2, vel: 0 };
   pipes = [];
@@ -94,9 +94,7 @@ function resetGame() {
 }
 
 /* ================= MENU BUTTONS ================= */
-function button(x, y, w, h) {
-  return { x, y, w, h };
-}
+function button(x, y, w, h) { return { x, y, w, h }; }
 
 function inside(px, py, b) {
   return px >= b.x && px <= b.x + b.w &&
@@ -113,6 +111,10 @@ function menuButtons() {
   };
 }
 
+function backButton() {
+  return { x: canvas.width / 2 - 100, y: canvas.height - 80, w: 200, h: 50 };
+}
+
 /* ================= INPUT ================= */
 function flap() {
   if (state === STATE.PLAYING) {
@@ -125,14 +127,9 @@ function flap() {
 }
 
 canvas.addEventListener("click", handleClick);
-canvas.addEventListener("touchstart", e => {
-  e.preventDefault();
-  handleClick(e.touches[0]);
-}, { passive: false });
+canvas.addEventListener("touchstart", e => { e.preventDefault(); handleClick(e.touches[0]); }, { passive: false });
 
-document.addEventListener("keydown", e => {
-  if (e.code === "Space") flap();
-});
+document.addEventListener("keydown", e => { if (e.code === "Space") flap(); });
 
 function handleClick(e) {
   const rect = canvas.getBoundingClientRect();
@@ -140,29 +137,24 @@ function handleClick(e) {
   const y = e.clientY - rect.top;
 
   const btn = menuButtons();
+  const back = backButton();
 
   if (state === STATE.MENU) {
-    if (inside(x, y, btn.play)) {
-      resetGame();
-      state = STATE.PLAYING;
-    } else if (inside(x, y, btn.board)) {
-      state = STATE.LEADERBOARD;
-    } else if (inside(x, y, btn.settings)) {
-      state = STATE.SETTINGS;
-    } else if (inside(x, y, btn.credits)) {
-      state = STATE.CREDITS;
-    }
+    if (inside(x, y, btn.play)) { resetGame(); state = STATE.PLAYING; }
+    else if (inside(x, y, btn.board)) state = STATE.LEADERBOARD;
+    else if (inside(x, y, btn.settings)) state = STATE.SETTINGS;
+    else if (inside(x, y, btn.credits)) state = STATE.CREDITS;
     return;
   }
 
   if (state === STATE.SETTINGS) {
-    soundEnabled = !soundEnabled;
-    localStorage.setItem("soundEnabled", soundEnabled);
+    if (inside(x, y, back)) state = STATE.MENU;
+    else { soundEnabled = !soundEnabled; localStorage.setItem("soundEnabled", soundEnabled); }
     return;
   }
 
   if (state === STATE.LEADERBOARD || state === STATE.CREDITS) {
-    state = STATE.MENU;
+    if (inside(x, y, back)) state = STATE.MENU;
     return;
   }
 
@@ -183,7 +175,23 @@ function drawButton(b, label) {
   drawText(label, b.y + 38);
 }
 
-/* ================= UPDATE ================= */
+/* ================= ASSET LOADING ================= */
+let assetsLoaded = 0;
+const TOTAL_ASSETS = 1 + 1 + birdImgs.length;
+
+function assetReady() {
+  assetsLoaded++;
+  if (assetsLoaded === TOTAL_ASSETS) {
+    resetGame();
+    update();
+  }
+}
+
+bgImg.onload = assetReady;
+pipeImg.onload = assetReady;
+birdImgs.forEach(img => img.onload = assetReady);
+
+/* ================= UPDATE LOOP ================= */
 function update() {
   ctx.drawImage(bgImg, 0, 0, canvas.width, canvas.height);
 
@@ -202,11 +210,7 @@ function update() {
     bird.y += bird.vel;
 
     if (frame % 90 === 0) {
-      pipes.push({
-        x: canvas.width,
-        top: Math.random() * (canvas.height - pipeGap - 200) + 100,
-        passed: false
-      });
+      pipes.push({ x: canvas.width, top: Math.random() * (canvas.height - pipeGap - 200) + 100, passed: false });
     }
 
     pipes.forEach(p => {
@@ -223,11 +227,7 @@ function update() {
       ctx.drawImage(pipeImg, p.x, p.top + pipeGap, pipeWidth, pipeHeight);
 
       // collision
-      if (
-        bird.x + 34 > p.x &&
-        bird.x < p.x + pipeWidth &&
-        (bird.y < p.top || bird.y + 24 > p.top + pipeGap)
-      ) {
+      if (bird.x + 34 > p.x && bird.x < p.x + pipeWidth && (bird.y < p.top || bird.y + 24 > p.top + pipeGap)) {
         playSound(sounds.hit);
         playSound(sounds.die);
         saveScore(playerName, score);
@@ -261,30 +261,25 @@ function update() {
   else if (state === STATE.LEADERBOARD) {
     drawText("Leaderboard", 140, 42);
     const board = getLeaderboard();
-    board.forEach((e, i) => {
-      drawText(`${i + 1}. ${e.name} - ${e.score}`, 220 + i * 36);
-    });
+    board.forEach((e, i) => drawText(`${i + 1}. ${e.name} - ${e.score}`, 220 + i * 36));
     if (!board.length) drawText("No scores yet", 260);
-    drawText("Tap to return", 520, 18);
+    drawButton(backButton(), "Back");
   }
 
   else if (state === STATE.SETTINGS) {
     drawText("Settings", 220, 42);
     drawText("Sound: " + (soundEnabled ? "ON" : "OFF"), 290);
-    drawText("Tap to toggle", 340);
-    drawText("Tap to return", 520, 18);
+    drawText("Tap anywhere else to toggle", 340);
+    drawButton(backButton(), "Back");
   }
 
   else if (state === STATE.CREDITS) {
     drawText("Credits", 220, 42);
     drawText("chenul", 290);
     drawText("ChatGPT", 330);
-    drawText("Tap to return", 520, 18);
+    drawButton(backButton(), "Back");
   }
 
   requestAnimationFrame(update);
 }
 
-/* ================= START ================= */
-resetGame();
-update();
